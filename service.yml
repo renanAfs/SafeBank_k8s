@@ -1,13 +1,13 @@
-# service.yaml
+
 apiVersion: v1
 kind: Service
 metadata:
   name: safebank-webapp-service
 spec:
-  type: LoadBalancer # ALTERE DE VOLTA PARA LOADBALANCER
+  type: LoadBalancer 
   selector:
     app: safebank-webapp
   ports:
     - protocol: TCP
-      port: 80       # A porta do serviço será 80
+      port: 80       
       targetPort: 80

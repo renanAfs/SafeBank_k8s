@@ -1,70 +1,50 @@
-# Projeto SafeBank Digital - Deploy de Aplicação Web no Kubernetes (AWS)
+# Projeto SafeBank Digital: Deploy de Aplicação Web no Kubernetes (AWS)
 
-Este repositório contém os arquivos de manifesto Kubernetes para a publicação de uma aplicação web estática simples, conforme o desafio proposto pela SafeBank Digital. O objetivo é validar a infraestrutura de containers na AWS (EKS ou Kubernetes em EC2) e garantir que a aplicação possa ser acessada publicamente.
+## 1. Objetivo do Projeto
 
-## 1. Estratégia de Exposição do Serviço
+O objetivo deste projeto foi simular a publicação de uma aplicação web estática para a empresa fictícia SafeBank Digital em um ambiente de nuvem real (AWS Academy). A missão era utilizar Kubernetes para criar os objetos básicos (Pods, Services, Deployments) e expor a aplicação para acesso, validando a infraestrutura de contêineres da empresa.
 
-Para expor a aplicação para acesso externo, foi utilizada a estratégia de **`Service` do tipo `LoadBalancer`**.
+---
 
-Ao aplicar um `Service` do tipo `LoadBalancer` em um cluster Kubernetes hospedado na AWS, o controlador de nuvem da AWS detecta essa solicitação e provisiona automaticamente um **Elastic Load Balancer (ELB)**. Este ELB é configurado para distribuir o tráfego de rede para os Pods que correspondem ao seletor do `Service` (`app: safebank-webapp`) em suas respectivas portas de nó (`NodePort`), que são gerenciadas automaticamente pelo Kubernetes.
+## 2. Estratégia de Implementação e Desafios
 
-## 2. Justificativa da Escolha (`LoadBalancer`)
+A execução do projeto seguiu uma abordagem de dois planos, adaptando-se aos desafios encontrados no ambiente de laboratório.
 
-A escolha pelo `Service` do tipo `LoadBalancer` foi baseada nos seguintes motivos, alinhados a um cenário de validação que visa se aproximar de um ambiente de produção:
+### Plano A: Amazon EKS (Elastic Kubernetes Service)
 
-* **Proximidade com o Ambiente de Produção:** Esta é a forma padrão e mais robusta de expor serviços publicamente na nuvem. Simula exatamente como uma aplicação real seria acessada pelos clientes, fornecendo um endpoint DNS público e estável.
-* **Alta Disponibilidade e Escalabilidade:** O ELB da AWS distribui o tráfego entre as múltiplas réplicas da nossa aplicação (definidas no `deployment.yaml`). Se um Pod falhar, o Load Balancer para de enviar tráfego para ele, garantindo a disponibilidade. Além disso, se escalarmos o número de réplicas, o Load Balancer automaticamente incluirá os novos Pods no balanceamento.
-* **Gerenciamento Simplificado:** A criação, configuração e manutenção do Load Balancer são totalmente gerenciadas pelo Kubernetes e pela integração com a AWS. Não precisamos configurar manualmente o ELB, grupos de segurança ou regras de roteamento, o que reduz a complexidade operacional e o risco de erros.
-* **Segurança:** O ELB pode ser integrado com outros serviços da AWS, como o AWS Certificate Manager (ACM) para terminações SSL/TLS e o Web Application Firewall (WAF) para proteção contra ataques comuns, tornando a solução mais segura desde o início.
+A estratégia inicial era utilizar o **Amazon EKS**, o serviço gerenciado de Kubernetes da AWS. Esta seria a abordagem mais próxima de um ambiente de produção real, permitindo o uso de um `Service` do tipo `LoadBalancer` para expor a aplicação de forma robusta.
 
-Embora `NodePort` e `port-forward` sejam úteis para depuração e acesso interno, eles não representam um cenário de acesso público realista e resiliente, que é o objetivo final da SafeBank Digital.
+* **Desafio Encontrado:** Ao tentar criar o cluster com a ferramenta `eksctl`, o processo falhou com um erro de **`AccessDeniedException`**. A análise do erro revelou que o usuário temporário do ambiente AWS Academy (`voclabs`) não possuía as permissões necessárias (`eks:DescribeClusterVersions`) para criar ou gerenciar recursos do EKS.
 
-## 3. Prints de Tela e Resultados
+### Plano B: Minikube em uma Instância EC2
 
-A seguir, as evidências de que os objetos foram criados com sucesso e a aplicação está acessível.
+Diante da restrição de permissões, a estratégia foi adaptada para um **Plano B**: criar um cluster Kubernetes "single-node" com **Minikube**, rodando dentro de uma instância EC2 permitida pelo ambiente do laboratório.
 
-### Print 1: Verificando o Deployment e os Pods
+* **Justificativa:** Esta abordagem permitiu cumprir o objetivo central de criar e gerenciar objetos Kubernetes em um ambiente de nuvem real, mesmo com as limitações impostas. A exposição da aplicação foi planejada utilizando um `Service` do tipo `NodePort`.
 
-Após aplicar os arquivos com `kubectl apply -f .`, verificamos se o Deployment criou as 2 réplicas solicitadas e se os Pods estão no estado `Running`.
+---
 
-```sh
-$ kubectl get deployment safebank-webapp-deployment
-NAME                         READY   UP-TO-DATE   AVAILABLE   AGE
-safebank-webapp-deployment   2/2     2            2           5m12s
+## 3. Arquivos de Manifesto Kubernetes
 
-$ kubectl get pods
-NAME                                          READY   STATUS    RESTARTS   AGE
-safebank-webapp-deployment-6b8c4c4c9b-abc12   1/1     Running   0          5m12s
-safebank-webapp-deployment-6b8c4c4c9b-def34   1/1     Running   0          5m12s
-```
-*A imagem acima mostra que o Deployment está saudável (`READY 2/2`) e os dois Pods estão em execução.*
+Os seguintes arquivos foram criados para definir o estado desejado da nossa aplicação no cluster.
 
-### Print 2: Verificando o Service e o Endereço Público
+<details>
+<summary>📄 <b>deployment.yaml</b></summary>
 
-Em seguida, verificamos o `Service` para obter o endereço DNS público (`EXTERNAL-IP`) criado pelo ELB.
-
-*(Nota: Pode levar alguns minutos para a AWS provisionar o ELB e o endereço aparecer).*
-
-```sh
-$ kubectl get service safebank-webapp-service
-NAME                      TYPE           CLUSTER-IP      EXTERNAL-IP                                                               PORT(S)        AGE
-safebank-webapp-service   LoadBalancer   10.100.25.123   a1b2c3d4e5f6a7b8c9.sa-east-1.elb.amazonaws.com                             80:31234/TCP   8m30s
-```
-*A imagem acima confirma que o Service é do tipo `LoadBalancer` e recebeu um endereço externo DNS do provedor de nuvem.*
-
-### Print 3: Acessando a Aplicação via `curl`
-
-Finalmente, usamos o endereço externo para acessar a aplicação. O comando `curl` confirma que estamos recebendo uma resposta do nosso container web.
-
-```sh
-$ curl [http://a1b2c3d4e5f6a7b8c9.sa-east-1.elb.amazonaws.com](http://a1b2c3d4e5f6a7b8c9.sa-east-1.elb.amazonaws.com)
-
-Server address: 172.17.0.5:80
-Server name: safebank-webapp-deployment-6b8c4c4c9b-abc12
-Date: 08/Sep/2025:22:50:00 +0000
-URI: /
-Request ID: f4e5d6c7b8a9
-```
-*O acesso foi bem-sucedido! A resposta mostra o nome do Pod (`safebank...-abc12`), provando que a requisição passou pelo Load Balancer e chegou a uma das réplicas da nossa aplicação.*
-
-Se executarmos o comando `curl` novamente, poderemos ver a resposta vindo do outro Pod (`...-def34`), demonstrando o balanceamento de carga em ação.
+```yaml
+# deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: safebank-webapp-deployment
+  labels:
+    app: safebank-webapp
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: safebank-webapp
+  template:
+    metadata:
+      labels:
+        app: safeb
