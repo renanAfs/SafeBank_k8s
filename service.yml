@@ -1,0 +1,16 @@
+# service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: safebank-webapp-service
+spec:
+  # AQUI ESTÁ A ÚNICA MUDANÇA:
+  # Mudamos de 'LoadBalancer' para 'NodePort' para que funcione
+  # com o Minikube dentro da instância EC2.
+  type: NodePort
+  selector:
+    app: safebank-webapp
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 80

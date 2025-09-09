@@ -1,13 +1,22 @@
-# service.yaml (versão modificada)
-apiVersion: v1
-kind: Service
+# deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
 metadata:
-  name: safebank-webapp-service
-spec:
-  type: NodePort # MUDANÇA AQUI
-  selector:
+  name: safebank-webapp-deployment
+  labels:
     app: safebank-webapp
-  ports:
-    - protocol: TCP
-      port: 80
-      targetPort: 80
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: safebank-webapp
+  template:
+    metadata:
+      labels:
+        app: safebank-webapp
+    spec:
+      containers:
+      - name: safebank-container
+        image: nginxdemos/hello:plain-text
+        ports:
+        - containerPort: 80
