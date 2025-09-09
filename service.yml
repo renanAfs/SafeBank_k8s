@@ -4,13 +4,10 @@ kind: Service
 metadata:
   name: safebank-webapp-service
 spec:
-  # AQUI ESTÁ A ÚNICA MUDANÇA:
-  # Mudamos de 'LoadBalancer' para 'NodePort' para que funcione
-  # com o Minikube dentro da instância EC2.
-  type: NodePort
+  type: LoadBalancer # ALTERE DE VOLTA PARA LOADBALANCER
   selector:
     app: safebank-webapp
   ports:
     - protocol: TCP
-      port: 80
+      port: 80       # A porta do serviço será 80
       targetPort: 80
